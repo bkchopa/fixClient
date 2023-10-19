@@ -25,8 +25,8 @@ def find_lockfile_path():
     return None
 
 
-def get_lcu_credentials():
-    path_to_lockfile = 'D:\Riot\Riot Games\League of Legends/lockfile'#find_lockfile_path()
+def get_lcu_credentials(path):
+    path_to_lockfile = path #'D:\Riot\Riot Games\League of Legends/lockfile'#find_lockfile_path()
 
     if not path_to_lockfile:
         path_to_lockfile = 'lockfile'
@@ -107,5 +107,5 @@ def fetch_current_game_id():
 
 def send_data_to_server(sorted_data, server_url):
     json_data = json.dumps(sorted_data)
-    response = requests.post(server_url, data=json_data, headers={'Content-Type': 'application/json'})
+    response = requests.post(server_url, data=json_data, headers={'Content-Type': 'application/json'}, verify=False)
     return response

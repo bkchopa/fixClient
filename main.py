@@ -5,7 +5,11 @@ import api
 import time
 import threading
 
+import requests
+print(requests.certs.where())
 
+import ssl
+print(ssl.OPENSSL_VERSION)
 
 def get_sorted_data(data):
     positions_order = ["TOP", "JUG", "MID", "ADC", "SUP", "UNKNOWN"]
@@ -41,7 +45,6 @@ class App:
         self.current_game_id = None  # 현재 게임의 ID를 저장하는 변수
 
         self.monitor_thread = threading.Thread(target=self.monitor_game_flow_phase, daemon=True)
-        self.monitor_thread.start()
 
         self.left_frame = ttk.Frame(root)
         self.left_frame.pack(side=tk.LEFT, padx=20, pady=20)
@@ -79,6 +82,21 @@ class App:
 
         self.result_label = tk.Label(root, text="")
         self.result_label.pack(pady=20)
+
+        self.master = root
+        self.master.title("LCU Path Input")
+
+        self.root = root
+        self.root.title("LCU Path Input")
+
+        self.label = tk.Label(root, text="Enter the path to the League of Legends folder:")
+        self.label.pack(pady=20)
+
+        self.entry = tk.Entry(root, width=50)
+        self.entry.pack(pady=20)
+
+        self.submit_button = tk.Button(root, text="Submit", command=self.set_path)
+        self.submit_button.pack(pady=20)
 
     def create_lobby(self):
         # Use the API function to create lobby
@@ -129,8 +147,13 @@ class App:
 
             # 데이터를 정렬하고 출력합니다.
             sorted_data = get_sorted_data(result_data)
-            print(sorted_data)
-            api.send_json_to_server("api/game_result", sorted_data)
+
+            payload = {
+                "game_data": sorted_data,
+                "game_id": game_id
+            }
+            print(payload)
+            api.send_json_to_server("api/game_result", payload)
 
         else:
             print(f"Error {response.status_code}: {response.text}")
@@ -160,8 +183,13 @@ class App:
 
             # 데이터를 정렬하고 출력합니다.
             sorted_data = get_sorted_data(result_data)
-            print(sorted_data)
-            api.send_json_to_server("api/game_result", sorted_data)
+
+            payload = {
+                "game_data": sorted_data,
+                "game_id": game_id
+            }
+            print(payload)
+            api.send_json_to_server("api/game_result", payload)
 
         else:
             print(f"Error {response.status_code}: {response.text}")
@@ -176,18 +204,32 @@ class App:
             if self.current_game_id:
                 print(f"Game is in progress. Current game ID: {self.current_game_id}")
 
+    def set_path(self):
+        path_to_lol = self.entry.get()
+        path_to_lockfile = path_to_lol + '/lockfile'
 
+        port, password = lcu.get_lcu_credentials(path_to_lockfile)
+        LCU_URL = f"https://127.0.0.1:{port}"
+        HEADERS = {'Content-Type': 'application/json', 'Accept': 'application/json'}
+        AUTH = ('riot', password)
+
+        # 전역 변수 설정
+        lcu.set_lcu_globals(LCU_URL, HEADERS, AUTH)
+
+
+        self.monitor_thread.start()
 
 
     def monitor_game_flow_phase(self):
         while True:
             # 1분 대기
-            time.sleep(5)
+            api.test_greet()
+            time.sleep(60)
             current_phase = lcu.fetch_game_flow_phase()
             print(current_phase)
             if current_phase is None:
                 continue
-            elif current_phase :#!= self.LAST_PHASE:
+            elif current_phase != self.LAST_PHASE:
                 self.onGameFlowPhaseChanged(current_phase)
                 self.LAST_PHASE = current_phase
 
@@ -198,13 +240,6 @@ class App:
 
 
 if __name__ == "__main__":
-    port, password = lcu.get_lcu_credentials()
-    LCU_URL = f"https://127.0.0.1:{port}"
-    HEADERS = {'Content-Type': 'application/json', 'Accept': 'application/json'}
-    AUTH = ('riot', password)
-
-    # 전역 변수 설정
-    lcu.set_lcu_globals(LCU_URL, HEADERS, AUTH)
     root = tk.Tk()
     app = App(root)
     root.mainloop()

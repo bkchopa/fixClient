@@ -1,4 +1,15 @@
 import requests
+import urllib3
+from urllib3.util.ssl_ import create_urllib3_context
+
+ctx = create_urllib3_context()
+ctx.load_default_certs()
+ctx.options |= 0x4  # ssl.OP_LEGACY_SERVER_CONNECT
+
+with urllib3.PoolManager(ssl_context=ctx) as http:
+    r = http.request("GET", "https://nomads.ncep.noaa.gov/")
+    print(r.status)
+
 
 BASE_URL = "https://fix-botbychopa.herokuapp.com/"
 
