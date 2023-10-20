@@ -4,6 +4,7 @@ import lcu
 import api
 import time
 import threading
+import os
 
 import requests
 print(requests.certs.where())
@@ -89,7 +90,7 @@ class App:
         self.root = root
         self.root.title("LCU Path Input")
 
-        self.label = tk.Label(root, text="Enter the path to the League of Legends folder:")
+        self.label = tk.Label(root, text="LeagueClient.exe가 있는 폴더경로를 입력해 주세요")
         self.label.pack(pady=20)
 
         self.entry = tk.Entry(root, width=50)
@@ -97,6 +98,21 @@ class App:
 
         self.submit_button = tk.Button(root, text="Submit", command=self.set_path)
         self.submit_button.pack(pady=20)
+
+        self.error_label = tk.Label(self.root, text="", fg="red")  # 에러 메시지를 빨간색으로 표시
+        self.error_label.pack(pady=10)  # GUI에 레이블 추가
+
+        if os.path.exists('lock.txt'):
+            with open('lock.txt', 'r') as f:
+                path = f.read().strip()
+                if path:  # lock.txt가 비어있지 않으면
+                    self.entry.insert(0, path)
+                    self.set_path()
+        else:
+            # lock.txt 파일이 존재하지 않을 경우, Entry에 기본 메시지를 희미하게 표시합니다.
+            self.entry.insert(0, '예시) D:\Riot\Riot Games\League of Legends')
+            self.entry.config(fg='gray')
+            self.entry.bind("<FocusIn>", self.on_entry_click)
 
     def create_lobby(self):
         # Use the API function to create lobby
@@ -204,26 +220,39 @@ class App:
             if self.current_game_id:
                 print(f"Game is in progress. Current game ID: {self.current_game_id}")
 
+    def on_entry_click(self, event=None):
+        """Entry 클릭 시 기본 메시지를 지웁니다."""
+        if self.entry.get() == 'LeagueClient.exe 경로를 입력해 주세요(예시:D:\Riot\Riot Games\League of Legends)':
+            self.entry.delete(0, "end")  # 내용 삭제
+            self.entry.config(fg='black')
+            self.entry.unbind('<FocusIn>')
+
     def set_path(self):
         path_to_lol = self.entry.get()
         path_to_lockfile = path_to_lol + '/lockfile'
 
         port, password = lcu.get_lcu_credentials(path_to_lockfile)
-        LCU_URL = f"https://127.0.0.1:{port}"
-        HEADERS = {'Content-Type': 'application/json', 'Accept': 'application/json'}
-        AUTH = ('riot', password)
+        if port and password:  # lockfile을 제대로 읽어왔을 경우
+            # lock.txt에 lockfile의 경로를 저장합니다.
+            with open('lock.txt', 'w') as f:
+                f.write(path_to_lol)
 
-        # 전역 변수 설정
-        lcu.set_lcu_globals(LCU_URL, HEADERS, AUTH)
+            LCU_URL = f"https://127.0.0.1:{port}"
+            HEADERS = {'Content-Type': 'application/json', 'Accept': 'application/json'}
+            AUTH = ('riot', password)
 
+            # 전역 변수 설정
+            lcu.set_lcu_globals(LCU_URL, HEADERS, AUTH)
 
-        self.monitor_thread.start()
+            # Entry와 버튼을 비활성화합니다.
+            self.entry.config(state=tk.DISABLED)
+            self.submit_button.config(state=tk.DISABLED)
 
+            self.monitor_thread.start()
 
     def monitor_game_flow_phase(self):
         while True:
             # 1분 대기
-            api.test_greet()
             time.sleep(60)
             current_phase = lcu.fetch_game_flow_phase()
             print(current_phase)
