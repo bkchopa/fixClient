@@ -5,8 +5,10 @@ import api
 import time
 import threading
 import os
-
+from PIL import ImageGrab
 import requests
+
+
 print(requests.certs.where())
 
 import ssl
@@ -219,6 +221,8 @@ class App:
             self.current_game_id = lcu.fetch_current_game_id()
             if self.current_game_id:
                 print(f"Game is in progress. Current game ID: {self.current_game_id}")
+        if new_phase == "EndOfGame":
+            take_screenshot()
 
     def on_entry_click(self, event=None):
         """Entry 클릭 시 기본 메시지를 지웁니다."""
@@ -253,7 +257,7 @@ class App:
     def monitor_game_flow_phase(self):
         while True:
             # 1분 대기
-            time.sleep(60)
+            time.sleep(5)
             current_phase = lcu.fetch_game_flow_phase()
             print(current_phase)
             if current_phase is None:
@@ -263,6 +267,11 @@ class App:
                 self.LAST_PHASE = current_phase
 
 
+
+def take_screenshot(filename="screenshot.png"):
+    """스크린샷을 찍어 지정된 파일명으로 저장합니다."""
+    screenshot = ImageGrab.grab()
+    screenshot.save(filename)
 
 
 
