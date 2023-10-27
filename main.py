@@ -7,7 +7,7 @@ import threading
 import os
 from PIL import ImageGrab
 import requests
-
+import pygetwindow as gw
 
 print(requests.certs.where())
 
@@ -213,16 +213,14 @@ class App:
             print(f"Error {response.status_code}: {response.text}")
 
     def onGameFlowPhaseChanged(self, new_phase):
-        # 여기에 게임 플로우 상태가 변경되었을 때의 처리 로직을 추가하십시오.
-        if new_phase != "InProgress" and self.current_game_id:
-            self.fetch_and_process_game_data(self.current_game_id)
-            self.current_game_id = None
         if new_phase == "InProgress":
             self.current_game_id = lcu.fetch_current_game_id()
             if self.current_game_id:
                 print(f"Game is in progress. Current game ID: {self.current_game_id}")
-        if new_phase == "EndOfGame":
+        elif new_phase == "EndOfGame" and self.current_game_id:
             take_screenshot()
+            self.fetch_and_process_game_data(self.current_game_id)
+            self.current_game_id = None
 
     def on_entry_click(self, event=None):
         """Entry 클릭 시 기본 메시지를 지웁니다."""
@@ -262,16 +260,26 @@ class App:
             print(current_phase)
             if current_phase is None:
                 continue
-            elif current_phase != self.LAST_PHASE:
+            elif current_phase :# != self.LAST_PHASE:
                 self.onGameFlowPhaseChanged(current_phase)
                 self.LAST_PHASE = current_phase
 
 
-
-def take_screenshot(filename="screenshot.png"):
-    """스크린샷을 찍어 지정된 파일명으로 저장합니다."""
-    screenshot = ImageGrab.grab()
-    screenshot.save(filename)
+def is_lol_client_foreground():
+    active_window = gw.getActiveWindow()
+    if active_window:
+        return "League of Legends" in active_window.title
+    return False
+def take_screenshot():
+    while True:
+        if is_lol_client_foreground():
+            screenshot = ImageGrab.grab()
+            screenshot.save("screenshot.png")
+            print("Screenshot saved as screenshot.png")
+            break
+        else:
+            print("Waiting for League of Legends client to be in the foreground...")
+            time.sleep(1)  # 5초마다 최상단 창을 확인합니다.
 
 
 
