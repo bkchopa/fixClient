@@ -8,6 +8,8 @@ import os
 from PIL import ImageGrab
 import requests
 import pygetwindow as gw
+import json
+
 
 print(requests.certs.where())
 
@@ -170,8 +172,14 @@ class App:
                 "game_data": sorted_data,
                 "game_id": game_id
             }
-            print(payload)
-            api.send_json_to_server("api/game_result", payload)
+
+            take_screenshot()
+            # 게임 데이터 가져오기
+            # 스크린샷과 게임 데이터를 웹 서버에 전송
+            # api.send_json_to_server("api/game_result", payload)
+
+            api.send_screenshot_and_game_data("api/game_result", "screenshot.png", payload)
+
 
         else:
             print(f"Error {response.status_code}: {response.text}")
@@ -206,20 +214,31 @@ class App:
                 "game_data": sorted_data,
                 "game_id": game_id
             }
-            print(payload)
-            api.send_json_to_server("api/game_result", payload)
+            return payload
 
         else:
             print(f"Error {response.status_code}: {response.text}")
 
+
+
     def onGameFlowPhaseChanged(self, new_phase):
+        #take_screenshot()
+        # 게임 데이터 가져오기
+        #game_data = self.fetch_and_process_game_data(self.current_game_id)  # send_to_server=False로 수정
+        # 스크린샷과 게임 데이터를 웹 서버에 전송
+        #api.send_screenshot_and_game_data("api/game_result", "screenshot.png", game_data)
+
         if new_phase == "InProgress":
             self.current_game_id = lcu.fetch_current_game_id()
             if self.current_game_id:
                 print(f"Game is in progress. Current game ID: {self.current_game_id}")
         elif new_phase == "EndOfGame" and self.current_game_id:
             take_screenshot()
-            self.fetch_and_process_game_data(self.current_game_id)
+            # 게임 데이터 가져오기
+            game_data = self.fetch_and_process_game_data(self.current_game_id)  # send_to_server=False로 수정
+            # 스크린샷과 게임 데이터를 웹 서버에 전송
+            api.send_screenshot_and_game_data("api/game_result", "screenshot.png", game_data)
+
             self.current_game_id = None
 
     def on_entry_click(self, event=None):
@@ -276,7 +295,7 @@ def take_screenshot():
             screenshot = ImageGrab.grab()
             screenshot.save("screenshot.png")
             print("Screenshot saved as screenshot.png")
-            break
+            return
         else:
             print("Waiting for League of Legends client to be in the foreground...")
             time.sleep(1)  # 5초마다 최상단 창을 확인합니다.
