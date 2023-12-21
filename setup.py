@@ -1,7 +1,7 @@
 from cx_Freeze import setup, Executable
 
 build_exe_options = {
-    "packages": ["os", "tkinter", "requests", "threading"],  # 필요한 패키지 추가
+    "packages": ["os", "tkinter", "requests", "threading", "pygetwindow", "winreg"],  # 필요한 패키지 추가
     "include_files": []  # 필요한 파일이 있다면 여기에 추가
 }
 

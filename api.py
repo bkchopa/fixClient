@@ -44,29 +44,16 @@ def send_json_to_server(endpoint, data):
 
 
 def send_screenshot_and_game_data(endpoint, screenshot_path, game_data):
-    """서버로 스크린샷과 게임 데이터를 함께 전송하는 함수.
-
-    Args:
-        screenshot_path (str): 스크린샷 파일의 경로.
-        game_data (dict): 게임 데이터.
-
-    Returns:
-        response (Response): 서버로부터의 응답 객체.
-    """
     print(f"Attempting to open image at path: {screenshot_path}")
-
-    headers = {
-        "Content-Type": "multipart/form-data"
-    }
-
-    print(game_data)
 
     with open(screenshot_path, "rb") as f:
         files = {
-            "screenshot": (os.path.basename(screenshot_path), f, "image/png"),
-            "game_data": ("game_data.json", json.dumps(game_data), "application/json")
+            "screenshot": (os.path.basename(screenshot_path), f, "image/png")
         }
-        response = requests.post(f"{BASE_URL}{endpoint}", files=files, verify=False)
+        data = {
+            "game_data": json.dumps(game_data)
+        }
+        response = requests.post(f"{BASE_URL}{endpoint}", files=files, data=data, verify=False)
 
     if response.status_code == 200:
         print("Screenshot and game data sent successfully!")

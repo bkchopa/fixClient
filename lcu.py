@@ -2,11 +2,17 @@ import json
 import os
 import requests
 from typing import Tuple
-import winreg as reg
+import winreg
 
 LCU_URL = None
 HEADERS = None
 AUTH = None
+def get_lol_client_path():
+    try:
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, r'Software\FixBot') as key:
+            return winreg.QueryValueEx(key, 'LoLPath')[0]
+    except FileNotFoundError:
+        return None
 
 def set_lcu_globals(url, headers, auth):
     global LCU_URL, HEADERS, AUTH
@@ -109,3 +115,5 @@ def send_data_to_server(sorted_data, server_url):
     json_data = json.dumps(sorted_data)
     response = requests.post(server_url, data=json_data, headers={'Content-Type': 'application/json'}, verify=False)
     return response
+
+

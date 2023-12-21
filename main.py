@@ -28,19 +28,7 @@ def get_sorted_data(data):
     sorted_data = sorted_winning_team + sorted_losing_team
     return sorted_data
 
-def determine_position(lane, role):
-    if lane == "TOP":
-        return "TOP"
-    elif lane == "JUNGLE" or (lane == "NONE" and role == "NONE"):
-        return "JUG"
-    elif lane == "MIDDLE":
-        return "MID"
-    elif lane == "BOTTOM" and role == "CARRY":
-        return "ADC"
-    elif lane == "BOTTOM" and role == "SUPPORT":
-        return "SUP"
-    else:
-        return "UNKNOWN"
+
 
 class App:
     def __init__(self, root):
@@ -94,29 +82,18 @@ class App:
         self.root = root
         self.root.title("LCU Path Input")
 
-        self.label = tk.Label(root, text="LeagueClient.exe가 있는 폴더경로를 입력해 주세요")
-        self.label.pack(pady=20)
+        path_to_lockfile = lcu.get_lol_client_path() + '/lockfile'
+        port, password = lcu.get_lcu_credentials(path_to_lockfile)
 
-        self.entry = tk.Entry(root, width=50)
-        self.entry.pack(pady=20)
+        LCU_URL = f"https://127.0.0.1:{port}"
+        HEADERS = {'Content-Type': 'application/json', 'Accept': 'application/json'}
+        AUTH = ('riot', password)
 
-        self.submit_button = tk.Button(root, text="Submit", command=self.set_path)
-        self.submit_button.pack(pady=20)
+        # 전역 변수 설정
+        lcu.set_lcu_globals(LCU_URL, HEADERS, AUTH)
 
-        self.error_label = tk.Label(self.root, text="", fg="red")  # 에러 메시지를 빨간색으로 표시
-        self.error_label.pack(pady=10)  # GUI에 레이블 추가
+        self.monitor_thread.start()
 
-        if os.path.exists('lock.txt'):
-            with open('lock.txt', 'r') as f:
-                path = f.read().strip()
-                if path:  # lock.txt가 비어있지 않으면
-                    self.entry.insert(0, path)
-                    self.set_path()
-        else:
-            # lock.txt 파일이 존재하지 않을 경우, Entry에 기본 메시지를 희미하게 표시합니다.
-            self.entry.insert(0, '예시) D:\Riot\Riot Games\League of Legends')
-            self.entry.config(fg='gray')
-            self.entry.bind("<FocusIn>", self.on_entry_click)
 
     def create_lobby(self):
         # Use the API function to create lobby
@@ -141,12 +118,27 @@ class App:
         else:
             self.result_label.config(text=f"Connection error: {response.text}")
 
+    def determine_position(self,participant_id):
+        # participantId에 따라 포지션을 결정합니다.
+        if participant_id in [1, 6]:
+            return "TOP"
+        elif participant_id in [2, 7]:
+            return "JUG"
+        elif participant_id in [3, 8]:
+            return "MID"
+        elif participant_id in [4, 9]:
+            return "ADC"
+        elif participant_id in [5, 10]:
+            return "SUP"
+        else:
+            return "Unknown"
+
     def fetch_game_data(self):
         game_id = self.game_id_entry.get()
         response = lcu.fetch_game_data(game_id)
         if response.status_code == 200:
             match_data = response.json()
-
+            print(match_data)
             participants_data = match_data['participants']
             participant_identities = match_data['participantIdentities']
 
@@ -154,11 +146,10 @@ class App:
             result_data = []
             for participant, identity in zip(participants_data, participant_identities):
                 player_data = {}
-                player_data['nickname'] = identity['player']['summonerName']
+                player_data['nickname'] = identity['player']['gameName']
                 player_data['champion'] = str(participant['championId'])
                 player_data['win'] = 'Win' if participant['stats']['win'] else 'Lose'
-                player_data['position'] = determine_position(participant['timeline']['lane'],
-                                                             participant['timeline']['role'])
+                player_data['position'] = self.determine_position(participant['participantId'])
                 player_data['kills'] = participant['stats'].get('kills', 0)
                 player_data['deaths'] = participant['stats'].get('deaths', 0)
                 player_data['assists'] = participant['stats'].get('assists', 0)
@@ -176,8 +167,6 @@ class App:
             take_screenshot()
             # 게임 데이터 가져오기
             # 스크린샷과 게임 데이터를 웹 서버에 전송
-            # api.send_json_to_server("api/game_result", payload)
-
             api.send_screenshot_and_game_data("api/game_result", "screenshot.png", payload)
 
 
@@ -199,8 +188,7 @@ class App:
                 player_data['nickname'] = identity['player']['summonerName']
                 player_data['champion'] = str(participant['championId'])
                 player_data['win'] = 'Win' if participant['stats']['win'] else 'Lose'
-                player_data['position'] = determine_position(participant['timeline']['lane'],
-                                                             participant['timeline']['role'])
+                player_data['position'] = self.determine_position(participant['participantId'])
                 player_data['kills'] = participant['stats'].get('kills', 0)
                 player_data['deaths'] = participant['stats'].get('deaths', 0)
                 player_data['assists'] = participant['stats'].get('assists', 0)
@@ -222,11 +210,14 @@ class App:
 
 
     def onGameFlowPhaseChanged(self, new_phase):
-        #take_screenshot()
+        take_screenshot()
         # 게임 데이터 가져오기
-        #game_data = self.fetch_and_process_game_data(self.current_game_id)  # send_to_server=False로 수정
+        if not self.current_game_id:
+            return
+
+        game_data = self.fetch_and_process_game_data(self.current_game_id)  # send_to_server=False로 수정
         # 스크린샷과 게임 데이터를 웹 서버에 전송
-        #api.send_screenshot_and_game_data("api/game_result", "screenshot.png", game_data)
+        api.send_screenshot_and_game_data("api/game_result", "screenshot.png", game_data)
 
         if new_phase == "InProgress":
             self.current_game_id = lcu.fetch_current_game_id()
@@ -248,28 +239,7 @@ class App:
             self.entry.config(fg='black')
             self.entry.unbind('<FocusIn>')
 
-    def set_path(self):
-        path_to_lol = self.entry.get()
-        path_to_lockfile = path_to_lol + '/lockfile'
 
-        port, password = lcu.get_lcu_credentials(path_to_lockfile)
-        if port and password:  # lockfile을 제대로 읽어왔을 경우
-            # lock.txt에 lockfile의 경로를 저장합니다.
-            with open('lock.txt', 'w') as f:
-                f.write(path_to_lol)
-
-            LCU_URL = f"https://127.0.0.1:{port}"
-            HEADERS = {'Content-Type': 'application/json', 'Accept': 'application/json'}
-            AUTH = ('riot', password)
-
-            # 전역 변수 설정
-            lcu.set_lcu_globals(LCU_URL, HEADERS, AUTH)
-
-            # Entry와 버튼을 비활성화합니다.
-            self.entry.config(state=tk.DISABLED)
-            self.submit_button.config(state=tk.DISABLED)
-
-            self.monitor_thread.start()
 
     def monitor_game_flow_phase(self):
         while True:
@@ -291,17 +261,30 @@ def is_lol_client_foreground():
     return False
 def take_screenshot():
     while True:
-        if is_lol_client_foreground():
+        try:
+            # 롤 클라이언트 창을 찾습니다. 창의 이름은 실제 클라이언트의 제목과 일치해야 합니다.
+            lol_window = gw.getWindowsWithTitle('League of Legends')[0]
+            if lol_window.isActive:
+                # 창의 위치와 크기를 얻습니다.
+                left, top, right, bottom = lol_window.left, lol_window.top, lol_window.right, lol_window.bottom
+                # 해당 영역만 스크린샷을 찍습니다.
+                screenshot = ImageGrab.grab(bbox=(left, top, right, bottom))
+                screenshot.save("screenshot.png")
+                print("Screenshot of LoL client saved as screenshot.png")
+                return
+            else:
+                print("Waiting for League of Legends client to be in the foreground...")
+                time.sleep(1)
+        except IndexError:
+            # 롤 클라이언트 창을 찾지 못한 경우 전체 화면 스크린샷을 찍습니다.
+            print("League of Legends client not found. Taking full screen screenshot...")
             screenshot = ImageGrab.grab()
             screenshot.save("screenshot.png")
-            print("Screenshot saved as screenshot.png")
+            print("Full screen screenshot saved as screenshot.png")
             return
-        else:
-            print("Waiting for League of Legends client to be in the foreground...")
-            time.sleep(1)  # 5초마다 최상단 창을 확인합니다.
-
-
-
+        except Exception as e:
+            print(f"Error occurred: {e}")
+            time.sleep(1)
 
 
 if __name__ == "__main__":
