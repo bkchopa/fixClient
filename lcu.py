@@ -14,6 +14,13 @@ def get_lol_client_path():
     except FileNotFoundError:
         return None
 
+def is_lol_client_running():
+    """롤 클라이언트가 실행 중인지 확인합니다."""
+    lol_path = get_lol_client_path()
+    if lol_path and os.path.exists(os.path.join(lol_path, 'lockfile')):
+        return True
+    return False
+
 def set_lcu_globals(url, headers, auth):
     global LCU_URL, HEADERS, AUTH
     LCU_URL = url

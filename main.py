@@ -82,15 +82,7 @@ class App:
         self.root = root
         self.root.title("LCU Path Input")
 
-        path_to_lockfile = lcu.get_lol_client_path() + '/lockfile'
-        port, password = lcu.get_lcu_credentials(path_to_lockfile)
 
-        LCU_URL = f"https://127.0.0.1:{port}"
-        HEADERS = {'Content-Type': 'application/json', 'Accept': 'application/json'}
-        AUTH = ('riot', password)
-
-        # 전역 변수 설정
-        lcu.set_lcu_globals(LCU_URL, HEADERS, AUTH)
 
         self.monitor_thread.start()
 
@@ -239,19 +231,42 @@ class App:
             self.entry.config(fg='black')
             self.entry.unbind('<FocusIn>')
 
-
-
     def monitor_game_flow_phase(self):
         while True:
-            # 1분 대기
-            time.sleep(5)
-            current_phase = lcu.fetch_game_flow_phase()
-            print(current_phase)
-            if current_phase is None:
+            # 롤 클라이언트가 실행 중인지 확인
+            if not lcu.is_lol_client_running():
+                print("롤 클라이언트가 실행되지 않고 있습니다. 대기 중...")
+                time.sleep(5)
                 continue
-            elif current_phase :# != self.LAST_PHASE:
-                self.onGameFlowPhaseChanged(current_phase)
-                self.LAST_PHASE = current_phase
+
+            path_to_lockfile = lcu.get_lol_client_path() + '/lockfile'
+            port, password = lcu.get_lcu_credentials(path_to_lockfile)
+
+            LCU_URL = f"https://127.0.0.1:{port}"
+            HEADERS = {'Content-Type': 'application/json', 'Accept': 'application/json'}
+            AUTH = ('riot', password)
+
+            # 전역 변수 설정
+            lcu.set_lcu_globals(LCU_URL, HEADERS, AUTH)
+
+
+            # 게임 플로우 상태 모니터링 로직
+            for _ in range(5):  # 예: 최대 5번 재시도
+                try:
+                    current_phase = lcu.fetch_game_flow_phase()
+                    print(current_phase)
+                    if current_phase is None:
+                        time.sleep(5)  # 잠시 대기 후 다시 시도
+                        continue
+                    elif current_phase:  # != self.LAST_PHASE:
+                        self.onGameFlowPhaseChanged(current_phase)
+                        self.LAST_PHASE = current_phase
+                        break  # 성공적으로 처리되면 반복문 탈출
+                except Exception as e:
+                    print(f"LCU 엔드포인트 호출 오류: {e}, 재시도 중...")
+                    time.sleep(5)  # 잠시 대기 후 재시도
+
+            time.sleep(1)  # 다음 상태 확인 전에 잠시 대기
 
 
 def is_lol_client_foreground():
