@@ -31,7 +31,7 @@ def get_sorted_data(data):
 
 
 class App:
-    def __init__(self, root):
+    def __init__(self, root=None, background_mode=False):
         # ... [기존 init 함수 내용 생략]
 
         self.LAST_PHASE = None
@@ -39,48 +39,49 @@ class App:
 
         self.monitor_thread = threading.Thread(target=self.monitor_game_flow_phase, daemon=True)
 
-        self.left_frame = ttk.Frame(root)
-        self.left_frame.pack(side=tk.LEFT, padx=20, pady=20)
+        if not background_mode:
+            self.left_frame = ttk.Frame(root)
+            self.left_frame.pack(side=tk.LEFT, padx=20, pady=20)
 
-        self.right_frame = ttk.Frame(root)
-        self.right_frame.pack(side=tk.RIGHT, padx=20, pady=20)
+            self.right_frame = ttk.Frame(root)
+            self.right_frame.pack(side=tk.RIGHT, padx=20, pady=20)
 
-        self.create_button = ttk.Button(self.left_frame, text="방 생성 및 초대", command=self.create_lobby)
-        self.create_button.pack(pady=20)
+            self.create_button = ttk.Button(self.left_frame, text="방 생성 및 초대", command=self.create_lobby)
+            self.create_button.pack(pady=20)
 
-        self.test_button = ttk.Button(self.left_frame, text="테스트", command=self.run_test)
-        self.test_button.pack(pady=20)
+            self.test_button = ttk.Button(self.left_frame, text="테스트", command=self.run_test)
+            self.test_button.pack(pady=20)
 
-        self.test_button2 = ttk.Button(self.left_frame, text="테스트2", command=self.run_test)
-        self.test_button2.pack(pady=20)
+            self.test_button2 = ttk.Button(self.left_frame, text="테스트2", command=self.run_test)
+            self.test_button2.pack(pady=20)
 
-        self.label = ttk.Label(self.right_frame, text="소환사 닉네임:")
-        self.label.pack(pady=10)
+            self.label = ttk.Label(self.right_frame, text="소환사 닉네임:")
+            self.label.pack(pady=10)
 
-        self.entry = ttk.Entry(self.right_frame, width=20)
-        self.entry.pack(pady=10)
+            self.entry = ttk.Entry(self.right_frame, width=20)
+            self.entry.pack(pady=10)
 
-        self.invite_button = ttk.Button(self.right_frame, text="초대", command=self.invite)
-        self.invite_button.pack(pady=10)
+            self.invite_button = ttk.Button(self.right_frame, text="초대", command=self.invite)
+            self.invite_button.pack(pady=10)
 
-        # 게임 ID 입력 및 정보 가져오기 위한 UI 요소
-        self.game_id_label = ttk.Label(self.right_frame, text="게임 ID:")
-        self.game_id_label.pack(pady=10)
+            # 게임 ID 입력 및 정보 가져오기 위한 UI 요소
+            self.game_id_label = ttk.Label(self.right_frame, text="게임 ID:")
+            self.game_id_label.pack(pady=10)
 
-        self.game_id_entry = ttk.Entry(self.right_frame, width=20)
-        self.game_id_entry.pack(pady=10)
+            self.game_id_entry = ttk.Entry(self.right_frame, width=20)
+            self.game_id_entry.pack(pady=10)
 
-        self.fetch_game_data_button = ttk.Button(self.right_frame, text="게임 정보 가져오기", command=self.fetch_game_data)
-        self.fetch_game_data_button.pack(pady=10)
+            self.fetch_game_data_button = ttk.Button(self.right_frame, text="게임 정보 가져오기", command=self.fetch_game_data)
+            self.fetch_game_data_button.pack(pady=10)
 
-        self.result_label = tk.Label(root, text="")
-        self.result_label.pack(pady=20)
+            self.result_label = tk.Label(root, text="")
+            self.result_label.pack(pady=20)
 
-        self.master = root
-        self.master.title("LCU Path Input")
+            self.master = root
+            self.master.title("LCU Path Input")
 
-        self.root = root
-        self.root.title("LCU Path Input")
+            self.root = root
+            self.root.title("LCU Path Input")
 
 
 
@@ -303,6 +304,17 @@ def take_screenshot():
 
 
 if __name__ == "__main__":
-    root = tk.Tk()
-    app = App(root)
-    root.mainloop()
+    # 설정 파일 읽기
+    try:
+        with open('config.json', 'r') as config_file:
+            config = json.load(config_file)
+            background_mode = config.get('background_mode', False)
+    except FileNotFoundError:
+        background_mode = False
+
+    if not background_mode:
+        root = tk.Tk()
+        app = App(root, background_mode=background_mode)
+        root.mainloop()
+    else:
+        app = App(background_mode=background_mode)
