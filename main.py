@@ -170,7 +170,7 @@ class App:
         response = lcu.fetch_game_data(game_id)
         if response.status_code == 200:
             match_data = response.json()
-
+            print(match_data)
             participants_data = match_data['participants']
             participant_identities = match_data['participantIdentities']
 
@@ -178,7 +178,7 @@ class App:
             result_data = []
             for participant, identity in zip(participants_data, participant_identities):
                 player_data = {}
-                player_data['nickname'] = identity['player']['summonerName']
+                player_data['nickname'] = identity['player']['gameName']
                 player_data['champion'] = str(participant['championId'])
                 player_data['win'] = 'Win' if participant['stats']['win'] else 'Lose'
                 player_data['position'] = self.determine_position(participant['participantId'])
@@ -195,7 +195,12 @@ class App:
                 "game_data": sorted_data,
                 "game_id": game_id
             }
-            return payload
+
+            take_screenshot()
+            # 게임 데이터 가져오기
+            # 스크린샷과 게임 데이터를 웹 서버에 전송
+            api.send_screenshot_and_game_data("api/game_result", "screenshot.png", payload)
+
 
         else:
             print(f"Error {response.status_code}: {response.text}")
@@ -203,25 +208,13 @@ class App:
 
 
     def onGameFlowPhaseChanged(self, new_phase):
-        take_screenshot()
-        # 게임 데이터 가져오기
-        if not self.current_game_id:
-            return
-
-        game_data = self.fetch_and_process_game_data(self.current_game_id)  # send_to_server=False로 수정
-        # 스크린샷과 게임 데이터를 웹 서버에 전송
-        api.send_screenshot_and_game_data("api/game_result", "screenshot.png", game_data)
-
         if new_phase == "InProgress":
             self.current_game_id = lcu.fetch_current_game_id()
             if self.current_game_id:
                 print(f"Game is in progress. Current game ID: {self.current_game_id}")
         elif new_phase == "EndOfGame" and self.current_game_id:
-            take_screenshot()
             # 게임 데이터 가져오기
-            game_data = self.fetch_and_process_game_data(self.current_game_id)  # send_to_server=False로 수정
-            # 스크린샷과 게임 데이터를 웹 서버에 전송
-            api.send_screenshot_and_game_data("api/game_result", "screenshot.png", game_data)
+            self.fetch_and_process_game_data(self.current_game_id)  # send_to_server=False로 수정
 
             self.current_game_id = None
 
@@ -259,7 +252,7 @@ class App:
                     if current_phase is None:
                         time.sleep(5)  # 잠시 대기 후 다시 시도
                         continue
-                    elif current_phase:  # != self.LAST_PHASE:
+                    elif current_phase != self.LAST_PHASE:
                         self.onGameFlowPhaseChanged(current_phase)
                         self.LAST_PHASE = current_phase
                         break  # 성공적으로 처리되면 반복문 탈출
@@ -308,9 +301,9 @@ if __name__ == "__main__":
     try:
         with open('config.json', 'r') as config_file:
             config = json.load(config_file)
-            background_mode = config.get('background_mode', False)
+            background_mode = config.get('background_mode', True)
     except FileNotFoundError:
-        background_mode = False
+        background_mode = True
 
     if not background_mode:
         root = tk.Tk()
@@ -318,3 +311,8 @@ if __name__ == "__main__":
         root.mainloop()
     else:
         app = App(background_mode=background_mode)
+        stop_event = threading.Event()
+        try:
+            stop_event.wait()  # 프로그램 종료 시까지 대기
+        except KeyboardInterrupt:
+            pass
